@@ -1,53 +1,106 @@
-import streamlit as st
-import random
+import tkinter as tk
+from tkinter import ttk
+from tkinter import messagebox
 
-# 페이지 기본 설정
-st.set_page_config(page_title="숫자 맞추기 게임", page_icon="🎮")
+# 1. 색상 리스트 구성
+color_list_1 = ["빨강", "주황", "노랑", "초록", "파랑", "남색", "보라", "검정", "하양", "회색"]
+color_list_2 = ["하양", "검정", "베이지", "연두", "하늘", "분홍", "갈색", "금색", "은색", "네이비"]
 
-st.title("🎮 1~100 숫자 맞추기 (Up & Down)")
-st.write("컴퓨터가 생각한 1부터 100 사이의 비밀 숫자를 맞춰보세요!")
-
-# 게임 상태 초기화 (세션 유지)
-if "target" not in st.session_state:
-    st.session_state.target = random.randint(1, 100)
-    st.session_state.attempts = 0
-    st.session_state.game_over = False
-    st.session_state.history = []
-
-# 숫자 입력 폼
-with st.form(key="guess_form", clear_on_submit=True):
-    guess = st.number_input("숫자를 입력하세요:", min_value=1, max_value=100, step=1)
-    submit = st.form_submit_button("정답 확인!")
-
-# 버튼 클릭 시 로직
-if submit and not st.session_state.game_over:
-    st.session_state.attempts += 1
-    target = st.session_state.target
-
-    if guess < target:
-        msg = f"🔼 **{guess}** 보다 **UP!** (더 큰 숫자입니다)"
-        st.warning(msg)
-        st.session_state.history.append(msg)
-    elif guess > target:
-        msg = f"🔽 **{guess}** 보다 **DOWN!** (더 작은 숫자입니다)"
-        st.info(msg)
-        st.session_state.history.append(msg)
+# 2. 색 조합 평가 및 혼합 결과 함수
+def evaluate_combo(c1, c2):
+    # 맑음수치 '상'
+    good_combos = [
+        ("검정", "하양"), ("하양", "검정"), ("검정", "노랑"), ("노랑", "검정"),
+        ("남색", "하양"), ("파랑", "하양"), ("회색", "베이지"), ("초록", "베이지"),
+        ("하양", "네이비"), ("분홍", "네이비"), ("보라", "은색"), ("빨강", "금색")
+    ]
+    # 맑음수치 '하'
+    bad_combos = [
+        ("빨강", "초록"), ("초록", "빨강"), ("파랑", "주황"), ("주황", "파랑"),
+        ("보라", "노랑"), ("노랑", "보라"), ("빨강", "분홍"), ("검정", "갈색"),
+        ("주황", "분홍"), ("파랑", "연두")
+    ]
+    
+    combo = (c1, c2)
+    score = "중"
+    if combo in good_combos:
+        score = "상"
+    elif combo in bad_combos:
+        score = "하"
+        
+    # 혼합된 결과 색상 유추 로직
+    if c1 == c2:
+        mixed_color = c1
+    elif c2 == "하양" or c1 == "하양":
+        mixed_color = f"연한 {c1 if c2 == '하양' else c2}"
+    elif c2 == "검정" or c1 == "검정":
+        mixed_color = f"어두운 {c1 if c2 == '검정' else c2}"
+    elif (c1=="빨강" and c2=="파랑") or (c1=="파랑" and c2=="분홍"):
+        mixed_color = "보라"
+    elif (c1=="노랑" and c2=="하늘") or (c1=="파랑" and c2=="연두"):
+        mixed_color = "초록"
     else:
-        st.balloons()
-        st.success(f"🎉 정답입니다! **{st.session_state.attempts}번** 만에 맞추셨습니다!")
-        st.session_state.game_over = True
+        mixed_color = f"{c1}빛 {c2}" # 기본 조합 이름
+        
+    return score, mixed_color
 
-# 이전 입력 기록 표시
-if st.session_state.history:
-    with st.expander("이전 시도 기록 보기", expanded=True):
-        for item in reversed(st.session_state.history):
-            st.write(item)
+# 3. GUI 시스템 구성
+def on_combine_click():
+    c1 = combo1.get()
+    c2 = combo2.get()
+    
+    if not c1 or not c2:
+        messagebox.showwarning("입력 오류", "두 가지 색상을 모두 선택해주세요!")
+        return
+        
+    score, mixed_color = evaluate_combo(c1, c2)
+    
+    # 표(Treeview)에 결과 추가
+    tree.insert("", "end", values=(c1, c2, mixed_color, score))
 
-# 새 게임 시작 버튼
-if st.session_state.game_over:
-    if st.button("🔄 새 게임 시작하기"):
-        st.session_state.target = random.randint(1, 100)
-        st.session_state.attempts = 0
-        st.session_state.game_over = False
-        st.session_state.history = []
-        st.rerun()
+# 메인 윈도우 생성
+root = tk.Tk()
+root.title("🎨 색깔 조합 가이드 시스템")
+root.geometry("500x400")
+root.configure(padx=20, pady=20)
+
+# 상단 입력부 프레임
+input_frame = tk.Frame(root)
+input_frame.pack(pady=10)
+
+tk.Label(input_frame, text="리스트 1:").grid(row=0, column=0, padx=5)
+combo1 = ttk.Combobox(input_frame, values=color_list_1, state="readonly", width=10)
+combo1.grid(row=0, column=1, padx=5)
+combo1.set("빨강")
+
+tk.Label(input_frame, text=" + ").grid(row=0, column=2, padx=5)
+
+tk.Label(input_frame, text="리스트 2:").grid(row=0, column=3, padx=5)
+combo2 = ttk.Combobox(input_frame, values=color_list_2, state="readonly", width=10)
+combo2.grid(row=0, column=4, padx=5)
+combo2.set("하양")
+
+# 조합하기 버튼
+btn_combine = tk.Button(root, text="✨ 조합하기", command=on_combine_click, font=("Arial", 12, "bold"), bg="#4CAF50", fg="black", pady=5)
+btn_combine.pack(pady=15)
+
+# 하단 결과 표(Treeview) 프레임
+columns = ("color1", "color2", "mixed", "score")
+tree = ttk.Treeview(root, columns=columns, show="headings", height=10)
+
+# 표의 열(Header) 설정
+tree.heading("color1", text="선택 색상 1")
+tree.heading("color2", text="선택 색상 2")
+tree.heading("mixed", text="결과 색상")
+tree.heading("score", text="맑음 수치")
+
+# 표의 너비 및 정렬 설정
+tree.column("color1", width=80, anchor="center")
+tree.column("color2", width=80, anchor="center")
+tree.column("mixed", width=150, anchor="center")
+tree.column("score", width=80, anchor="center")
+
+tree.pack(fill="x")
+
+# 프로그램 실행
+root.mainloop()
